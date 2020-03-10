@@ -1,11 +1,16 @@
 class Hyperparameter:
     logdir = 'logdir'
     weights_dir = 'weights'
-    data_dir = 'datasets'
+    data_src = 'datasets'
+    data_processed = 'datasets_splitted'
     rate = 22050
-    batch_size = 1
+    batch_size = 8
     generator_lr = 0.0002
     discriminator_lr = 0.0001
+    lambda_cycle = 10
+    lambda_identity = 10
+    lambda_triangle = 5
+    lambda_backward = 5
     lambda_conditional = 1
     lambda_interp = 10
     lambda_mode_seeking = 1

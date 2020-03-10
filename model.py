@@ -3,6 +3,96 @@ import tensorflow_addons as tfa
 from hyperparams import Hyperparameter as hp
 
 
+class RelGAN(tf.keras.Model):
+    def __init__(self, num_domains):
+        super(RelGAN, self).__init__()
+        self.generator = Generator(num_domains)
+        self.discriminator = PatchGanDiscriminator()
+        self.adversarial = Adversarial()
+        self.interpolate = Interpolate()
+        self.matching = Matching(num_domains)
+
+    def call(self, inputs, training=None, mask=None):
+        input_A_real = inputs[0]
+        input_A2_real = inputs[1]
+        input_B_real = inputs[2]
+        input_C_real = inputs[3]
+        input_A_label = inputs[4]
+        input_B_label = inputs[5]
+        input_C_label = inputs[6]
+        alpha = inputs[7]
+        alpha_1 = tf.reshape(alpha, [-1, 1])
+
+        vector_A2B = input_B_label - input_A_label
+        vector_C2B = input_B_label - input_C_label
+        vector_A2C = input_C_label - input_A_label
+
+        outputs = []
+
+        # Generator.
+        generation_B = self.generator([input_A_real, vector_A2B])  # A -> B
+        generation_B2 = self.generator([input_A2_real, vector_A2B])  # A2 -> B2
+        generation_C = self.generator([input_B_real, -vector_C2B])  # B -> C
+        generation_A = self.generator([input_C_real, -vector_A2C])  # C -> A
+
+        cycle_A = self.generator([generation_B, -vector_A2B])
+
+        generation_A_identity = self.generator([input_A_real, vector_A2B - vector_A2B])
+
+        generation_alpha = self.generator([input_A_real, vector_A2B * alpha_1])
+        generation_alpha_back = self.generator([generation_alpha, -vector_A2B * alpha_1])
+
+        outputs.append(
+            [generation_B, generation_B2, generation_C, generation_A, cycle_A, generation_A_identity,
+             generation_alpha_back])
+
+        # One-step discriminator.
+        discrimination_B_fake = self.discriminator(generation_B)
+        discrimination_B_fake = self.adversarial(discrimination_B_fake)
+        discrimination_B_real = self.discriminator(input_B_real)
+        discrimination_B_real = self.adversarial(discrimination_B_real)
+
+        discrimination_alpha_fake = self.discriminator(generation_alpha)
+        discrimination_alpha_fake = self.adversarial(discrimination_alpha_fake)
+
+        # Two-step discriminator.
+        discrimination_A_dot_fake = self.discriminator(cycle_A)
+        discrimination_A_dot_fake = self.adversarial(discrimination_A_dot_fake)
+        discrimination_A_dot_real = self.discriminator(input_A_real)
+        discrimination_A_dot_real = self.adversarial(discrimination_A_dot_real)
+
+        outputs.append(
+            [discrimination_B_fake, discrimination_B_real, discrimination_alpha_fake, discrimination_A_dot_fake,
+             discrimination_A_dot_real])
+
+        # Conditional adversarial.
+        sr = [self.discriminator(input_A_real), self.discriminator(input_B_real), vector_A2B]
+        sr = self.matching(sr)
+        sf = [self.discriminator(input_A_real), self.discriminator(generation_B), vector_A2B]
+        sf = self.matching(sf)
+        w1 = [self.discriminator(input_C_real), self.discriminator(input_B_real), vector_A2B]
+        w1 = self.matching(w1)
+        w2 = [self.discriminator(input_A_real), self.discriminator(input_B_real), vector_C2B]
+        w2 = self.matching(w2)
+        w3 = [self.discriminator(input_A_real), self.discriminator(input_B_real), vector_A2C]
+        w3 = self.matching(w3)
+        w4 = [self.discriminator(input_A_real), self.discriminator(input_C_real), vector_A2B]
+        w4 = self.matching(w4)
+
+        outputs.append([sr, sf, w1, w2, w3, w4])
+
+        # Interpolation.
+        interpolate_identity = self.discriminator(generation_A_identity)
+        interpolate_identity = self.interpolate(interpolate_identity)
+        interpolate_B = self.discriminator(generation_B)
+        interpolate_B = self.interpolate(interpolate_B)
+        interpolate_alpha = self.discriminator(generation_alpha)
+        interpolate_alpha = self.interpolate(interpolate_alpha)
+
+        outputs.append([interpolate_identity, interpolate_B, interpolate_alpha])
+        return outputs
+
+
 class Generator(tf.keras.Model):
     def __init__(self, num_domains):
         super(Generator, self).__init__()
@@ -74,10 +164,8 @@ class Generator(tf.keras.Model):
 
 
 class PatchGanDiscriminator(tf.keras.Model):
-    def __init__(self, method='adversarial'):
+    def __init__(self):
         super(PatchGanDiscriminator, self).__init__()
-        self.method = method
-
         self.h1 = tf.keras.layers.Conv2D(128, kernel_size=(3, 3), padding='same', name='h1_conv')
         self.h1_gates = tf.keras.layers.Conv2D(128, kernel_size=(3, 3), padding='same', name='h1_conv_gates')
         self.h1_glu = tf.keras.layers.Multiply(name='h1_glu')
@@ -102,6 +190,58 @@ class PatchGanDiscriminator(tf.keras.Model):
         out = self.out(d4)
 
         return out
+
+
+class Adversarial(tf.keras.Model):
+    def __init__(self):
+        super(Adversarial, self).__init__()
+        self.adv = tf.keras.layers.Conv2D(1, [1, 3], strides=[1, 1], padding='same',
+                                          name='discriminator_out_conv_adv')
+
+    def call(self, inputs, training=None, mask=None):
+        x = self.adv(inputs)
+        return x
+
+
+class Interpolate(tf.keras.Model):
+    def __init__(self):
+        super(Interpolate, self).__init__()
+        self.i0 = tf.keras.layers.Conv2D(128, [3, 3], strides=[1, 1], padding='same',
+                                         name='discriminator_int1_conv')
+
+    def call(self, inputs, training=None, mask=None):
+        x = self.i0(inputs)
+        interp = tf.reduce_mean(x, axis=3, keepdims=True)
+        return interp
+
+
+class Matching(tf.keras.Model):
+    def __init__(self, num_domains):
+        super(Matching, self).__init__()
+        self.num_domains = num_domains
+        self.m1 = tf.keras.layers.Conv2D(1024, [3, 3], strides=[1, 1], padding='same',
+                                         name='discriminator_mat1_conv')
+        self.m1_gates = tf.keras.layers.Conv2D(1024, [3, 3], strides=[1, 1], padding='same',
+                                               name='discriminator_mat1_conv_gates')
+        self.m1_glu = tf.keras.layers.Multiply(name='discriminator_mat1_glu')
+        self.mat = tf.keras.layers.Conv2D(1, [1, 3], strides=[1, 1], padding='same',
+                                          name='discriminator_out_conv_mat')
+
+    def call(self, inputs, training=None, mask=None):
+        f1, f2, vec = inputs[0], inputs[1], inputs[2]
+        l = tf.reshape(vec, [-1, 1, 1, self.num_domains])
+        b = tf.shape(f1)[0]
+        h = tf.shape(f1)[1]
+        w = tf.shape(f1)[2]
+        k = tf.ones([b, h, w, self.num_domains])
+        k = k * l
+
+        m0 = tf.concat([f1, f2, k], axis=3)
+        m1 = self.m1(m0)
+        m1_gates = self.m1_gates(m0)
+        m1_glu = self.m1_glu([m1, tf.sigmoid(m1_gates)])
+        mat = self.mat(m1_glu)
+        return mat
 
 
 class Downsample2DBlock(tf.keras.Model):

@@ -2,7 +2,7 @@ class Hyperparameter:
     logdir = 'logdir'
     weights_dir = 'weights'
     data_src = 'datasets'
-    eval_dir = 'datasets/eval'
+    eval_dir = 'datasets_val'
     data_processed = 'datasets_splitted'
     rate = 22050
     batch_size = 8

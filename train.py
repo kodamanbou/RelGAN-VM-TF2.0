@@ -3,7 +3,11 @@ import numpy as np
 import glob
 import os
 import datetime
-from utils import load_pickle, sample_train_data
+import io
+import matplotlib.pyplot as plt
+import librosa
+from librosa import display
+from utils import *
 from hyperparams import Hyperparameter as hp
 from loss import l1_loss, l2_loss
 from model import RelGAN
@@ -118,6 +122,40 @@ def train_step(inputs):
         discriminator_loss_interp_summary.update_state(discriminator_loss_interp)
 
 
+@tf.function
+def test_step(inputs):
+    # returns generation_B.
+    outputs = model(inputs)
+    return outputs[0]
+
+
+def plot_to_image(figure):
+    """Converts the matplotlib plot specified by 'figure' to a PNG image and
+    returns it. The supplied figure is closed and inaccessible after this call."""
+    # Save the plot to a PNG in memory.
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    plt.close(figure)
+    buf.seek(0)
+    # Convert PNG buffer to TF image
+    image = tf.image.decode_png(buf.getvalue(), channels=4)
+    # Add the batch dimension
+    image = tf.expand_dims(image, 0)
+
+    return image
+
+
+def plot_spec(y):
+    figure = plt.figure(figsize=(12, 8))
+    D = librosa.amplitude_to_db(np.abs(librosa.stft(y)), ref=np.max)
+    display.specshow(D, y_axis='log')
+    plt.colorbar(format='%+2.0f dB')
+    plt.title('Log-frequency power spectrogram')
+    plt.tight_layout()
+
+    return figure
+
+
 if __name__ == '__main__':
     print('Loading cached data...')
     coded_sps_norms = []
@@ -202,6 +240,9 @@ if __name__ == '__main__':
                 tf.summary.scalar('Discriminator loss interpolation', discriminator_loss_interp_summary.result(),
                                   step=iteration)
 
+                print(f'Iteration: {iteration} \tGenerator loss: {gen_loss_summary.result()} \tDiscriminator loss: '
+                      f'{dis_loss_summary.result()}')
+
                 gen_loss_summary.reset_states()
                 cycle_loss_summary.reset_states()
                 identity_loss_summary.reset_states()
@@ -224,6 +265,57 @@ if __name__ == '__main__':
             x, x2, x_atr, y, y_atr, z, z_atr = sample_train_data(coded_sps_norms, nBatch=1)
             x_labels = np.zeros([1, num_domains])
             y_labels = np.zeros([1, num_domains])
-            x_labels[0] = np.identity(num_domains)[0]
+            z_labels = np.zeros([1, num_domains])
+            x_labels[0] = np.identity(num_domains)[x_atr[0]]
+            y_labels[0] = np.identity(num_domains)[y_atr[0]]
+            z_labels[0] = np.identity(num_domains)[z_atr[0]]
+            x_atr = x_atr[0]
+            y_atr = y_atr[0]
+            eval_dir = os.path.join(hp.eval_dir, eval_dirs[x_atr])
+            print(eval_dir)
+
+            for file in glob.glob(eval_dir + '/*.wav'):
+                alpha = np.ones(1)
+                wav, _ = librosa.load(file, sr=hp.rate, mono=True)
+                wav *= 1. / max(0.01, np.max(np.abs(wav)))
+                wav = wav_padding(wav, sr=hp.rate, frame_period=hp.duration, multiple=4)
+                f0, timeaxis, sp, ap = world_decompose(wav, fs=hp.rate, frame_period=hp.duration)
+                f0s_mean_A = np.exp(log_f0s_means[x_atr])
+                f0s_meanB = np.exp(log_f0s_means[y_atr])
+                f0s_mean_AB = alpha * f0s_meanB + (1 - alpha) * f0s_mean_A
+                log_f0s_mean_AB = np.log(f0s_mean_AB)
+                f0s_std_A = np.exp(log_f0s_stds[x_atr])
+                f0s_std_B = np.exp(log_f0s_stds[y_atr])
+                f0s_std_AB = alpha * f0s_std_B + (1 - alpha) * f0s_std_A
+                log_f0s_std_AB = np.log(f0s_std_AB)
+                f0_converted = pitch_conversion(f0, log_f0s_means[x_atr], log_f0s_stds[x_atr], log_f0s_mean_AB,
+                                                log_f0s_std_AB)
+                coded_sp = world_encode_spectral_envelop(sp, fs=hp.rate, dim=hp.num_mceps)
+                coded_sp_transposed = coded_sp.T
+                coded_sp_norm = (coded_sp_transposed - coded_sps_means[x_atr]) / coded_sps_stds[x_atr]
+
+                inputs = [x, x2, y, z, x_labels, y_labels, z_labels, alpha]
+                coded_sp_converted_norm = test_step(inputs)
+                if coded_sp_converted_norm.shape[1] > len(f0):
+                    coded_sp_converted_norm = coded_sp_converted_norm[:, :-1]
+                coded_sps_mean_AB = alpha * coded_sps_means[y_atr] + (1 - alpha) * coded_sps_means[x_atr]
+                coded_sps_std_AB = alpha * coded_sps_stds[y_atr] + (1 - alpha) * coded_sps_stds[x_atr]
+                coded_sp_converted = coded_sp_converted_norm * coded_sps_std_AB + coded_sps_mean_AB
+                coded_sp_converted = np.ascontiguousarray(coded_sp_converted.T)
+                decoded_sp_converted = world_decode_spectral_envelop(coded_sp_converted, fs=hp.rate)
+                wav_transformed = world_speech_synthesis(f0_converted, decoded_sp_converted, ap, fs=hp.rate,
+                                                         frame_period=hp.duration)
+                wav_transformed *= 1. / np.max(0.01, np.abs(wav_transformed))
+                wav_transformed = np.expand_dims(wav_transformed, axis=-1)
+                wav_transformed = np.expand_dims(wav_transformed, axis=0)
+
+                with summary_writer.as_default():
+                    fig = plot_spec(wav_transformed)
+                    img = plot_to_image(fig)
+                    tf.summary.image(
+                        f'Spec_iteration_{iteration}_{eval_dir.split("/")[-1]}_to_{eval_dirs[y_atr].split("/")[-1]}',
+                        img, step=iteration)
+                    tf.summary.audio(f'Generated_{eval_dirs[y_atr].split("/")[-1]}_iteration_{iteration}',
+                                     wav_transformed, sample_rate=hp.rate, step=iteration)
 
         iteration += 1

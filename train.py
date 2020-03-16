@@ -12,6 +12,10 @@ from hyperparams import Hyperparameter as hp
 from loss import l1_loss, l2_loss
 from model import RelGAN
 
+seed = 65535
+np.random.seed(seed)
+tf.random.set_seed(seed)
+
 
 @tf.function
 def train_step(inputs):

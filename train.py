@@ -1,11 +1,8 @@
 import tensorflow as tf
-import numpy as np
-import glob
 import os
 import datetime
 import io
 import matplotlib.pyplot as plt
-import librosa
 from librosa import display
 from utils import *
 from hyperparams import Hyperparameter as hp

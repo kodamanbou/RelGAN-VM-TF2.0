@@ -1,7 +1,7 @@
 FROM tensorflow/tensorflow:2.1.0-gpu-py3
 MAINTAINER Hideo Kodama <kodamanbou0424@gmail.com>
 
-RUN apt-get update
+RUN apt-get update && apt-get upgrade -y
 RUN apt-get install -y zip \
                        unzip \
                        ffmpeg \

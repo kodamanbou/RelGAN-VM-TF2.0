@@ -164,9 +164,9 @@ if __name__ == '__main__':
     coded_sps_stds = []
     log_f0s_means = []
     log_f0s_stds = []
-    for f in glob.glob(hp.data_processed + '/*'):
+    for f in glob.glob('pickles/*'):
         coded_sps_norm, coded_sps_mean, coded_sps_std, log_f0s_mean, log_f0s_std = load_pickle(
-            os.path.join(f, f'pickles/cache{hp.num_mceps}.p'))
+            os.path.join(f, f'cache{hp.num_mceps}.p'))
         coded_sps_norms.append(coded_sps_norm)
         coded_sps_means.append(coded_sps_mean)
         coded_sps_stds.append(coded_sps_std)

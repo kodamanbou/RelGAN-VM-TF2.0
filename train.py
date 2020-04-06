@@ -85,9 +85,10 @@ def train_step(inputs):
                                                y_hat=interpolate_identity) if rnd == 0 else l2_loss(
             y=tf.zeros_like(interpolate_B), y_hat=interpolate_B)
         discriminator_loss_interp_alpha = l2_loss(
-            y=tf.ones_like(interpolate_alpha) * tf.reshape(inputs[7], [-1, 1, 1, 1]),
+            y=tf.ones_like(interpolate_alpha) * tf.cast(tf.reshape(inputs[7], [-1, 1, 1, 1]), tf.float32),
             y_hat=interpolate_alpha) if rnd == 0 else l2_loss(
-            y=tf.ones_like(interpolate_alpha) * tf.reshape(1 - inputs[7], [-1, 1, 1, 1]), y_hat=interpolate_alpha)
+            y=tf.ones_like(interpolate_alpha) * tf.cast(tf.reshape(1. - inputs[7], [-1, 1, 1, 1]), tf.float32),
+            y_hat=interpolate_alpha)
         discriminator_loss_interp = discriminator_loss_interp_AB + discriminator_loss_interp_alpha
         generator_loss_interp_alpha = l2_loss(y=tf.zeros_like(interpolate_alpha), y_hat=interpolate_alpha)
 
@@ -101,7 +102,7 @@ def train_step(inputs):
         # Optimizers
         generator_vars = model.generator.trainable_variables
         discriminator_vars = model.discriminator.trainable_variables + model.adversarial.trainable_variables + \
-                             model.interpolate.trainable_variables + model.matching.trainable_variabless
+                             model.interpolate.trainable_variables + model.matching.trainable_variables
         grad_gen = gen_tape.gradient(generator_loss, sources=generator_vars)
         grad_dis = dis_tape.gradient(discriminator_loss, sources=discriminator_vars)
         generator_optimizer.apply_gradients(zip(grad_gen, generator_vars))

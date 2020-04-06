@@ -1,12 +1,11 @@
 import tensorflow as tf
 import tensorflow_addons as tfa
-from hyperparams import Hyperparameter as hp
 
 
 class RelGAN(tf.keras.Model):
-    def __init__(self, num_domains):
+    def __init__(self, num_domains, batch_size=1):
         super(RelGAN, self).__init__()
-        self.generator = Generator(num_domains)
+        self.generator = Generator(num_domains, batch_size)
         self.discriminator = PatchGanDiscriminator()
         self.adversarial = Adversarial()
         self.interpolate = Interpolate()
@@ -77,7 +76,7 @@ class RelGAN(tf.keras.Model):
         w4 = [self.discriminator(input_A_real), self.discriminator(input_C_real), vector_A2B]
         w4 = self.matching(w4)
 
-        outputs +=[sr, sf, w1, w2, w3, w4]
+        outputs += [sr, sf, w1, w2, w3, w4]
 
         # Interpolation.
         interpolate_identity = self.discriminator(generation_A_identity)
@@ -92,9 +91,10 @@ class RelGAN(tf.keras.Model):
 
 
 class Generator(tf.keras.Model):
-    def __init__(self, num_domains):
+    def __init__(self, num_domains, batch_size=1):
         super(Generator, self).__init__()
         self.num_domains = num_domains
+        self.batch_size = batch_size
 
         self.h1 = tf.keras.layers.Conv2D(128, kernel_size=(5, 15), padding='same', name='h1_conv')
         self.h1_gates = tf.keras.layers.Conv2D(128, kernel_size=(5, 15), padding='same', name='h1_conv_gates')
@@ -128,7 +128,7 @@ class Generator(tf.keras.Model):
         l = tf.reshape(vec, [-1, 1, 1, self.num_domains])
         h = tf.shape(inputs)[1]
         w = tf.shape(inputs)[2]
-        k = tf.ones([hp.batch_size, h, w, self.num_domains])
+        k = tf.ones([self.batch_size, h, w, self.num_domains])
         k = k * l
         inputs = tf.concat([inputs, k], axis=3)
 
@@ -138,7 +138,7 @@ class Generator(tf.keras.Model):
 
         d1 = self.d1(h1_glu)
         d2 = self.d2(d1)
-        d3 = tf.squeeze(tf.reshape(d2, shape=(hp.batch_size, 1, -1, 2304)), axis=1)
+        d3 = tf.squeeze(tf.reshape(d2, shape=(self.batch_size, 1, -1, 2304)), axis=1)
         resh1 = self.resh1(d3)
         resh1_norm = self.resh1_norm(resh1)
 
@@ -151,7 +151,7 @@ class Generator(tf.keras.Model):
 
         resh2 = self.resh2(res6)
         resh2_norm = self.resh2_norm(resh2)
-        resh3 = tf.reshape(tf.expand_dims(resh2_norm, axis=1), shape=(hp.batch_size, 9, -1, 256))
+        resh3 = tf.reshape(tf.expand_dims(resh2_norm, axis=1), shape=(self.batch_size, 9, -1, 256))
 
         u1 = self.u1(resh3)
         u2 = self.u2(u1)

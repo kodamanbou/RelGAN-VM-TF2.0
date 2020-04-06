@@ -127,7 +127,7 @@ def train_step(inputs):
 @tf.function
 def test_step(inputs):
     # returns generation_B.
-    outputs = model(inputs)
+    outputs = val_model(inputs)
     return outputs[0]
 
 
@@ -176,7 +176,7 @@ if __name__ == '__main__':
 
     # model and optimizers.
     num_domains = len(coded_sps_norms)
-    model = RelGAN(num_domains)
+    model = RelGAN(num_domains, hp.batch_size)
     gen_lr_fn = tf.optimizers.schedules.PolynomialDecay(hp.generator_lr, hp.num_iterations, 1e-05)
     dis_lr_fn = tf.optimizers.schedules.PolynomialDecay(hp.discriminator_lr, hp.num_iterations, 2e-05)
     generator_optimizer = tf.optimizers.Adam(learning_rate=gen_lr_fn, beta_1=0.5)
@@ -297,6 +297,10 @@ if __name__ == '__main__':
                 coded_sp_norm = (coded_sp_transposed - coded_sps_means[x_atr]) / coded_sps_stds[x_atr]
 
                 inputs = [x, x2, y, z, x_labels, y_labels, z_labels, alpha]
+                val_model = RelGAN(num_domains)
+                latest = tf.train.latest_checkpoint(hp.weights_dir)
+                val_model.load_weights(latest)
+
                 coded_sp_converted_norm = test_step(inputs)
                 if coded_sp_converted_norm.shape[1] > len(f0):
                     coded_sp_converted_norm = coded_sp_converted_norm[:, :-1]

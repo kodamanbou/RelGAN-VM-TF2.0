@@ -128,7 +128,7 @@ def train_step(inputs):
 def test_step(inputs):
     # returns generation_B.
     outputs = val_model(inputs)
-    return outputs[0]
+    return outputs[0][0]
 
 
 def plot_to_image(figure):

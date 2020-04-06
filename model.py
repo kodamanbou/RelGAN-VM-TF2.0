@@ -42,9 +42,8 @@ class RelGAN(tf.keras.Model):
         generation_alpha = self.generator([input_A_real, vector_A2B * alpha_1])
         generation_alpha_back = self.generator([generation_alpha, -vector_A2B * alpha_1])
 
-        outputs.append(
-            [generation_B, generation_B2, generation_C, generation_A, cycle_A, generation_A_identity,
-             generation_alpha_back])
+        outputs += [generation_B, generation_B2, generation_C, generation_A, cycle_A, generation_A_identity,
+                    generation_alpha_back]
 
         # One-step discriminator.
         discrimination_B_fake = self.discriminator(generation_B)
@@ -61,9 +60,8 @@ class RelGAN(tf.keras.Model):
         discrimination_A_dot_real = self.discriminator(input_A_real)
         discrimination_A_dot_real = self.adversarial(discrimination_A_dot_real)
 
-        outputs.append(
-            [discrimination_B_fake, discrimination_B_real, discrimination_alpha_fake, discrimination_A_dot_fake,
-             discrimination_A_dot_real])
+        outputs += [discrimination_B_fake, discrimination_B_real, discrimination_alpha_fake, discrimination_A_dot_fake,
+                    discrimination_A_dot_real]
 
         # Conditional adversarial.
         sr = [self.discriminator(input_A_real), self.discriminator(input_B_real), vector_A2B]
@@ -79,7 +77,7 @@ class RelGAN(tf.keras.Model):
         w4 = [self.discriminator(input_A_real), self.discriminator(input_C_real), vector_A2B]
         w4 = self.matching(w4)
 
-        outputs.append([sr, sf, w1, w2, w3, w4])
+        outputs +=[sr, sf, w1, w2, w3, w4]
 
         # Interpolation.
         interpolate_identity = self.discriminator(generation_A_identity)
@@ -89,7 +87,7 @@ class RelGAN(tf.keras.Model):
         interpolate_alpha = self.discriminator(generation_alpha)
         interpolate_alpha = self.interpolate(interpolate_alpha)
 
-        outputs.append([interpolate_identity, interpolate_B, interpolate_alpha])
+        outputs += [interpolate_identity, interpolate_B, interpolate_alpha]
         return outputs
 
 

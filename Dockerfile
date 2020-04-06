@@ -10,9 +10,8 @@ RUN apt-get install -y zip \
 RUN pip3 install librosa \
                  pyworld \
                  matplotlib \
-                 tqdm
-
-RUN pip3 install --no-deps tensorflow-addons==0.8.3
+                 tqdm \
+                 tensorflow-addons==0.8.3
 
 RUN mkdir work
 WORKDIR work

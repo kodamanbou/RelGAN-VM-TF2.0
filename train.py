@@ -301,7 +301,7 @@ if __name__ == '__main__':
                 latest = tf.train.latest_checkpoint(hp.weights_dir)
                 val_model.load_weights(latest)
 
-                coded_sp_converted_norm = test_step(inputs)
+                coded_sp_converted_norm = test_step(inputs).numpy()
                 if coded_sp_converted_norm.shape[1] > len(f0):
                     coded_sp_converted_norm = coded_sp_converted_norm[:, :-1]
                 coded_sps_mean_AB = alpha * coded_sps_means[y_atr] + (1 - alpha) * coded_sps_means[x_atr]

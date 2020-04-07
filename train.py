@@ -295,8 +295,10 @@ if __name__ == '__main__':
                 coded_sp = world_encode_spectral_envelop(sp, fs=hp.rate, dim=hp.num_mceps)
                 coded_sp_transposed = coded_sp.T
                 coded_sp_norm = (coded_sp_transposed - coded_sps_means[x_atr]) / coded_sps_stds[x_atr]
+                coded_sp_norm = np.array([coded_sp_norm])
 
-                inputs = [x, x2, y, z, x_labels, y_labels, z_labels, alpha]
+                inputs = [coded_sp_norm, coded_sp_norm, coded_sp_norm, coded_sp_norm, x_labels, y_labels, z_labels,
+                          alpha]
                 val_model = RelGAN(num_domains)
                 latest = tf.train.latest_checkpoint(hp.weights_dir)
                 val_model.load_weights(latest)

@@ -9,7 +9,7 @@ from model import RelGAN
 
 @tf.function
 def infer(inputs):
-    output = model(inputs)[0]
+    output = model(inputs)[0][0]
     return output
 
 

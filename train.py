@@ -124,13 +124,6 @@ def train_step(inputs):
         discriminator_loss_interp_summary.update_state(discriminator_loss_interp)
 
 
-@tf.function
-def test_step(inputs):
-    # returns generation_B.
-    converted = val_model(inputs)[0][0]
-    return converted
-
-
 def plot_to_image(figure):
     """Converts the matplotlib plot specified by 'figure' to a PNG image and
     returns it. The supplied figure is closed and inaccessible after this call."""
@@ -303,7 +296,7 @@ if __name__ == '__main__':
                 latest = tf.train.latest_checkpoint(hp.weights_dir)
                 val_model.load_weights(latest)
 
-                coded_sp_converted_norm = test_step(inputs).numpy()
+                coded_sp_converted_norm = val_model(inputs)[0][0].numpy()
                 if coded_sp_converted_norm.shape[1] > len(f0):
                     coded_sp_converted_norm = coded_sp_converted_norm[:, :-1]
                 coded_sps_mean_AB = alpha * coded_sps_means[y_atr] + (1 - alpha) * coded_sps_means[x_atr]

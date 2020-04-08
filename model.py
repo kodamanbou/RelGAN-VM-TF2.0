@@ -91,7 +91,7 @@ class RelGAN(tf.keras.Model):
 
 
 class Generator(tf.keras.Model):
-    def __init__(self, num_domains, batch_size=1):
+    def __init__(self, num_domains, batch_size):
         super(Generator, self).__init__()
         self.num_domains = num_domains
         self.batch_size = batch_size

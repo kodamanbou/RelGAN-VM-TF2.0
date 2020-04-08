@@ -314,8 +314,6 @@ if __name__ == '__main__':
                 wav_transformed = world_speech_synthesis(f0_converted, decoded_sp_converted, ap, fs=hp.rate,
                                                          frame_period=hp.duration)
                 wav_transformed *= 1. / max(0.01, np.max(np.abs(wav_transformed)))
-                wav_transformed = np.expand_dims(wav_transformed, axis=-1)
-                wav_transformed = np.expand_dims(wav_transformed, axis=0)
 
                 with summary_writer.as_default():
                     fig = plot_spec(wav_transformed)
@@ -323,6 +321,9 @@ if __name__ == '__main__':
                     tf.summary.image(
                         f'Spec_iteration_{iteration}_{eval_dir.split("/")[-1]}_to_{eval_dirs[y_atr].split("/")[-1]}',
                         img, step=iteration)
+
+                    wav_transformed = np.expand_dims(wav_transformed, axis=-1)
+                    wav_transformed = np.expand_dims(wav_transformed, axis=0)
                     tf.summary.audio(f'Generated_{eval_dirs[y_atr].split("/")[-1]}_iteration_{iteration}',
                                      wav_transformed, sample_rate=hp.rate, step=iteration)
 

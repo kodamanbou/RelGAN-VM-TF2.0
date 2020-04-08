@@ -127,8 +127,8 @@ def train_step(inputs):
 @tf.function
 def test_step(inputs):
     # returns generation_B.
-    outputs = val_model(inputs)
-    return outputs[0][0]
+    converted = val_model(inputs)[0][0]
+    return converted
 
 
 def plot_to_image(figure):

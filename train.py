@@ -127,7 +127,7 @@ def train_step(inputs):
 @tf.function
 def test_step(inputs):
     # returns generation_B.
-    converted = val_model(inputs)[0][0]
+    converted = model(inputs)[0][0]
     return converted
 
 
@@ -299,9 +299,6 @@ if __name__ == '__main__':
 
                 inputs = [coded_sp_norm, coded_sp_norm, coded_sp_norm, coded_sp_norm, x_labels, y_labels, z_labels,
                           alpha]
-                val_model = RelGAN(num_domains)
-                latest = tf.train.latest_checkpoint(hp.weights_dir)
-                val_model.load_weights(latest)
 
                 coded_sp_converted_norm = test_step(inputs).numpy()
                 if coded_sp_converted_norm.shape[1] > len(f0):

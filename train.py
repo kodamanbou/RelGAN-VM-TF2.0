@@ -313,7 +313,7 @@ if __name__ == '__main__':
                 decoded_sp_converted = world_decode_spectral_envelop(coded_sp_converted, fs=hp.rate)
                 wav_transformed = world_speech_synthesis(f0_converted, decoded_sp_converted, ap, fs=hp.rate,
                                                          frame_period=hp.duration)
-                wav_transformed *= 1. / np.max(0.01, np.abs(wav_transformed))
+                wav_transformed *= 1. / max(0.01, np.max(np.abs(wav_transformed)))
                 wav_transformed = np.expand_dims(wav_transformed, axis=-1)
                 wav_transformed = np.expand_dims(wav_transformed, axis=0)
 

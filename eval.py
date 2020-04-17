@@ -7,12 +7,6 @@ from utils import *
 from model import RelGAN
 
 
-@tf.function
-def infer(inputs):
-    output = model(inputs)[0][0]
-    return output
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('--source_label', '-s', dest='source_label', type=int, default=None, required=True,
@@ -68,7 +62,9 @@ if __name__ == '__main__':
 
         x_labels[0] = np.identity(num_domains)[x_atr]
         y_labels[0] = np.identity(num_domains)[y_atr]
-        z_labels[0] = np.identity(num_domains)[labels[labels != x_atr and labels != y_atr]]
+        labels = labels[labels != np.array([x_atr, y_atr])]
+        z_atr = np.random.choice(labels, 1)
+        z_labels[0] = np.identity(num_domains)[z_atr]
         alpha = np.ones(1) * alpha
 
         wav, _ = librosa.load(file, sr=hp.rate, mono=True)
@@ -93,7 +89,7 @@ if __name__ == '__main__':
 
         inputs = [coded_sp_norm, coded_sp_norm, coded_sp_norm, coded_sp_norm, x_labels, y_labels, z_labels,
                   alpha]
-        coded_sp_converted_norm = infer(inputs)
+        coded_sp_converted_norm = model(inputs)[0][0].numpy()
         if coded_sp_converted_norm.shape[1] > len(f0):
             coded_sp_converted_norm = coded_sp_converted_norm[:, :-1]
         coded_sps_AB_mean = (1 - alpha) * coded_sps_means[x_atr] + alpha * coded_sps_means[y_atr]

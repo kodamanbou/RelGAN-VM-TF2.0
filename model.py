@@ -164,10 +164,10 @@ class Generator(tf.keras.Model):
 class PatchGanDiscriminator(tf.keras.Model):
     def __init__(self):
         super(PatchGanDiscriminator, self).__init__()
-        self.h1 = tf.keras.layers.Conv2D(128, kernel_size=(3, 3), padding='same', name='h1_conv')
-        self.h1_sn = SpectralNormalization()
-        self.h1_gates = tf.keras.layers.Conv2D(128, kernel_size=(3, 3), padding='same', name='h1_conv_gates')
-        self.h1_gates_sn = SpectralNormalization()
+        self.h1 = tf.keras.layers.Conv2D(128, kernel_size=(3, 3), padding='same', kernel_regularizer=spectral_norm,
+                                         name='h1_conv')
+        self.h1_gates = tf.keras.layers.Conv2D(128, kernel_size=(3, 3), padding='same',
+                                               kernel_regularizer=spectral_norm, name='h1_conv_gates')
         self.h1_glu = tf.keras.layers.Multiply(name='h1_glu')
 
         self.d1 = Downsample2DBlock(256, kernel_size=(3, 3), strides=2, sn=True, name_prefix='downsample2d_block1_')
@@ -175,15 +175,10 @@ class PatchGanDiscriminator(tf.keras.Model):
         self.d3 = Downsample2DBlock(1024, kernel_size=(3, 3), strides=2, sn=True, name_prefix='downsample2d_block3_')
         self.d4 = Downsample2DBlock(1024, kernel_size=(1, 5), strides=1, sn=True, name_prefix='downsample2d_block4_')
 
-        self.out = tf.keras.layers.Conv2D(1, kernel_size=(1, 3), strides=1, padding='same', name='out_conv')
-        self.out_sn = SpectralNormalization()
+        self.out = tf.keras.layers.Conv2D(1, kernel_size=(1, 3), strides=1, padding='same',
+                                          kernel_regularizer=spectral_norm, name='out_conv')
 
     def __call__(self, inputs, training=None, mask=None):
-        # SpectralNormalization.
-        self.h1.set_weights([self.h1_sn(self.h1.get_weights()[0]), self.h1.get_weights()[1]])
-        self.h1_gates.set_weights([self.h1_gates_sn(self.h1_gates.get_weights()[0]), self.h1_gates.get_weights()[1]])
-        self.out.set_weights([self.out_sn(self.out.get_weights()[0]), self.out.get_weights()[1]])
-
         inputs = tf.expand_dims(inputs, axis=-1)  # [N, M, T, 1]
         h1 = self.h1(inputs)
         h1_gates = self.h1_gates(inputs)
@@ -201,12 +196,10 @@ class PatchGanDiscriminator(tf.keras.Model):
 class Adversarial(tf.keras.Model):
     def __init__(self):
         super(Adversarial, self).__init__()
-        self.adv = tf.keras.layers.Conv2D(1, [1, 3], strides=[1, 1], padding='same',
+        self.adv = tf.keras.layers.Conv2D(1, [1, 3], strides=[1, 1], padding='same', kernel_regularizer=spectral_norm,
                                           name='discriminator_out_conv_adv')
-        self.adv_sn = SpectralNormalization()
 
     def call(self, inputs, training=None, mask=None):
-        self.adv.set_weights([self.adv_sn(self.adv.get_weights()[0]), self.adv.get_weights()[1]])
         x = self.adv(inputs)
         return x
 
@@ -214,12 +207,10 @@ class Adversarial(tf.keras.Model):
 class Interpolate(tf.keras.Model):
     def __init__(self):
         super(Interpolate, self).__init__()
-        self.i0 = tf.keras.layers.Conv2D(128, [3, 3], strides=[1, 1], padding='same',
+        self.i0 = tf.keras.layers.Conv2D(128, [3, 3], strides=[1, 1], padding='same', kernel_regularizer=spectral_norm,
                                          name='discriminator_int1_conv')
-        self.i0_sn = SpectralNormalization()
 
     def call(self, inputs, training=None, mask=None):
-        self.i0.set_weights([self.i0_sn(self.i0.get_weights()[0]), self.i0.get_weights()[1]])
         x = self.i0(inputs)
         interp = tf.reduce_mean(x, axis=3, keepdims=True)
         return interp
@@ -229,16 +220,14 @@ class Matching(tf.keras.Model):
     def __init__(self, num_domains):
         super(Matching, self).__init__()
         self.num_domains = num_domains
-        self.m1 = tf.keras.layers.Conv2D(1024, [3, 3], strides=[1, 1], padding='same',
+        self.m1 = tf.keras.layers.Conv2D(1024, [3, 3], strides=[1, 1], padding='same', kernel_regularizer=spectral_norm,
                                          name='discriminator_mat1_conv')
-        self.m1_sn = SpectralNormalization()
         self.m1_gates = tf.keras.layers.Conv2D(1024, [3, 3], strides=[1, 1], padding='same',
+                                               kernel_regularizer=spectral_norm,
                                                name='discriminator_mat1_conv_gates')
-        self.m1_gates_sn = SpectralNormalization()
         self.m1_glu = tf.keras.layers.Multiply(name='discriminator_mat1_glu')
-        self.mat = tf.keras.layers.Conv2D(1, [1, 3], strides=[1, 1], padding='same',
+        self.mat = tf.keras.layers.Conv2D(1, [1, 3], strides=[1, 1], padding='same', kernel_regularizer=spectral_norm,
                                           name='discriminator_out_conv_mat')
-        self.mat_sn = SpectralNormalization()
 
     def call(self, inputs, training=None, mask=None):
         f1, f2, vec = inputs[0], inputs[1], inputs[2]
@@ -248,11 +237,6 @@ class Matching(tf.keras.Model):
         w = tf.shape(f1)[2]
         k = tf.ones([b, h, w, self.num_domains])
         k = k * l
-
-        # Spectral Normalization
-        self.m1.set_weights([self.m1_sn(self.m1.get_weights()[0]), self.m1.get_weights()[1]])
-        self.m1_gates.set_weights([self.m1_gates_sn(self.m1_gates.get_weights()[0]), self.m1_gates.get_weights()[1]])
-        self.mat.set_weights([self.mat_sn(self.mat.get_weights()[0]), self.mat.get_weights()[1]])
 
         m0 = tf.concat([f1, f2, k], axis=3)
         m1 = self.m1(m0)
@@ -265,24 +249,26 @@ class Matching(tf.keras.Model):
 class Downsample2DBlock(tf.keras.Model):
     def __init__(self, filters, kernel_size, strides=1, activation=None, sn=False, name_prefix=None):
         super(Downsample2DBlock, self).__init__()
-        self.sn = sn
 
-        self.h1 = tf.keras.layers.Conv2D(filters, kernel_size=kernel_size, strides=strides, activation=activation,
-                                         padding='same', name=name_prefix + 'h1_conv')
+        if sn:
+            self.h1 = tf.keras.layers.Conv2D(filters, kernel_size=kernel_size, strides=strides, activation=activation,
+                                             kernel_regularizer=spectral_norm, padding='same',
+                                             name=name_prefix + 'h1_conv')
+            self.h1_gates = tf.keras.layers.Conv2D(filters, kernel_size=kernel_size, strides=strides,
+                                                   activation=activation, kernel_regularizer=spectral_norm,
+                                                   padding='same', name=name_prefix + 'h1_gates')
+        else:
+            self.h1 = tf.keras.layers.Conv2D(filters, kernel_size=kernel_size, strides=strides, activation=activation,
+                                             padding='same', name=name_prefix + 'h1_conv')
+            self.h1_gates = tf.keras.layers.Conv2D(filters, kernel_size=kernel_size, strides=strides,
+                                                   activation=activation,
+                                                   padding='same', name=name_prefix + 'h1_gates')
+
         self.h1_norm = tfa.layers.InstanceNormalization(epsilon=1e-6, name=name_prefix + 'h1_norm')
-        self.h1_sn = SpectralNormalization()
-        self.h1_gates = tf.keras.layers.Conv2D(filters, kernel_size=kernel_size, strides=strides, activation=activation,
-                                               padding='same', name=name_prefix + 'h1_gates')
         self.h1_norm_gates = tfa.layers.InstanceNormalization(epsilon=1e-6, name=name_prefix + 'h1_norm_gates')
-        self.h1_gates_sn = SpectralNormalization()
         self.h1_glu = tf.keras.layers.Multiply(name=name_prefix + 'h1_glu')
 
     def __call__(self, inputs, training=None, mask=None):
-        if self.sn:
-            self.h1.set_weights([self.h1_sn(self.h1.get_weights()[0]), self.h1.get_weights()[1]])
-            self.h1_gates.set_weights(
-                [self.h1_gates_sn(self.h1_gates.get_weights()[0]), self.h1_gates.get_weights()[1]])
-
         h1 = self.h1(inputs)
         h1 = self.h1_norm(h1)
         gates = self.h1_gates(inputs)
@@ -342,34 +328,27 @@ class Upsample2DBlock(tf.keras.Model):
         return h1_glu
 
 
-class SpectralNormalization(tf.keras.layers.Layer):
-    def __init__(self, iteration=1):
-        super(SpectralNormalization, self).__init__()
-        self.iteration = iteration
+@tf.keras.utils.register_keras_serializable(package='Custom', name='spectral')
+def spectral_norm(weight_matrix):
+    w_shape = tf.shape(weight_matrix)
+    w = tf.reshape(weight_matrix, [-1, w_shape[-1]])
+    u = tf.Variable(initial_value=tf.random.normal([1, w_shape[-1]]), trainable=False, name='u')
 
-    def build(self, input_shape):
-        self.u = tf.Variable(initial_value=tf.random.normal([1, input_shape[-1]]), trainable=False, name='u')
-        self.w_shape = input_shape
-        print(input_shape)
+    u_hat = u
+    v_hat = None
+    for i in range(1):
+        v_ = tf.matmul(u_hat, tf.transpose(w))
+        v_hat = tf.nn.l2_normalize(v_)
+        u_ = tf.matmul(v_hat, w)
+        u_hat = tf.nn.l2_normalize(u_)
 
-    def call(self, inputs, **kwargs):
-        w = tf.reshape(inputs, [-1, self.w_shape[-1]])
+    u_hat = tf.stop_gradient(u_hat)
+    v_hat = tf.stop_gradient(v_hat)
 
-        u_hat = self.u
-        v_hat = None
-        for i in range(self.iteration):
-            v_ = tf.matmul(u_hat, tf.transpose(w))
-            v_hat = tf.nn.l2_normalize(v_)
-            u_ = tf.matmul(v_hat, w)
-            u_hat = tf.nn.l2_normalize(u_)
+    sigma = tf.matmul(tf.matmul(v_hat, w), tf.transpose(u_hat))
+    u.assign(u_hat)
 
-        u_hat = tf.stop_gradient(u_hat)
-        v_hat = tf.stop_gradient(v_hat)
+    w_norm = w / sigma
+    w_norm = tf.reshape(w_norm, w_shape)
 
-        sigma = tf.matmul(tf.matmul(v_hat, w), tf.transpose(u_hat))
-        self.u.assign(u_hat)
-
-        w_norm = w / sigma
-        w_norm = tf.reshape(w_norm, self.w_shape)
-
-        return w_norm
+    return w_norm

@@ -252,10 +252,8 @@ if __name__ == '__main__':
                 discriminator_loss_cond_summary.reset_states()
                 discriminator_loss_interp_summary.reset_states()
 
-        if iteration % 2500 == 0:
-            model.save_weights(os.path.join(hp.weights_dir, 'weights_{:}'.format(iteration)))
-
         if iteration % 1000 == 0:
+            model.save_weights(os.path.join(hp.weights_dir, 'weights_{:}'.format(iteration)))
             eval_dirs = os.listdir(hp.eval_dir)
             x, x2, x_atr, y, y_atr, z, z_atr = sample_train_data(coded_sps_norms, nBatch=1)
             x_labels = np.zeros([1, num_domains])

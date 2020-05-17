@@ -62,7 +62,8 @@ if __name__ == '__main__':
 
         x_labels[0] = np.identity(num_domains)[x_atr]
         y_labels[0] = np.identity(num_domains)[y_atr]
-        labels = labels[labels != np.array([x_atr, y_atr])]
+        labels = labels[labels != x_atr]
+        labels = labels[labels != y_atr]
         z_atr = np.random.choice(labels, 1)
         z_labels[0] = np.identity(num_domains)[z_atr]
         alpha = np.ones(1) * alpha

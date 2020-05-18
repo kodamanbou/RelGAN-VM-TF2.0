@@ -1,5 +1,4 @@
 import tensorflow as tf
-import librosa
 import os
 import argparse
 from hyperparams import Hyperparameter as hp

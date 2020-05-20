@@ -5,6 +5,7 @@ RUN apt-get update && apt-get upgrade -y
 RUN apt-get install -y zip \
                        unzip \
                        ffmpeg \
+                       portaudio19-dev \
                        nano
 
 RUN pip3 install librosa \

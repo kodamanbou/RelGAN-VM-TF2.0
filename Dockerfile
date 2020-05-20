@@ -11,6 +11,7 @@ RUN pip3 install librosa \
                  pyworld \
                  matplotlib \
                  tqdm \
+                 pyaudio \
                  tensorflow-addons==0.8.3
 
 RUN mkdir work

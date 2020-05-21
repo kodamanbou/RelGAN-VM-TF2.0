@@ -19,7 +19,7 @@ def worker(flag, lock):
 
 if __name__ == '__main__':
     p = pyaudio.PyAudio()
-    chunk = 1024
+    chunk = 2048
     stream = p.open(format=pyaudio.paInt16,
                     channels=1,
                     rate=44100,
@@ -32,7 +32,9 @@ if __name__ == '__main__':
     t1 = threading.Thread(target=worker, args=(flag, lock))
     t1.start()
 
-    while flag['recording']:
+    stream.start_stream()
+
+    while flag['recording'] and stream.is_active():
         data = stream.read(chunk)
         output = stream.write(data)
 

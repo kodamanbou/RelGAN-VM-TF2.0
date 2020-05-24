@@ -7,6 +7,8 @@ import argparse
 import pyaudio
 import threading
 from demo.encode_worker import encode_worker
+from demo.convert_worker import convert_worker
+from demo.decode_worker import decode_worker
 from multiprocessing import Queue, Process
 
 
@@ -34,36 +36,11 @@ if __name__ == '__main__':
     y_atr = args.target_label
     alpha = args.interpolation
 
-    print('Loading cached data...')
-    source_speakers = os.listdir('../pickles')
-    speaker_dirs = []
-    for f in source_speakers:
-        speaker_dirs.append(os.path.join('../pickles', f))
-
-    coded_sps_norms = []
-    coded_sps_means = []
-    coded_sps_stds = []
-    log_f0s_means = []
-    log_f0s_stds = []
-    for f in speaker_dirs:
-        coded_sps_A_norm, coded_sps_A_mean, coded_sps_A_std, log_f0s_mean_A, log_f0s_std_A = load_pickle(
-            os.path.join(f, 'cache{}.p'.format(hp.num_mceps)))
-        coded_sps_norms.append(coded_sps_A_norm)
-        coded_sps_means.append(coded_sps_A_mean)
-        coded_sps_stds.append(coded_sps_A_std)
-        log_f0s_means.append(log_f0s_mean_A)
-        log_f0s_stds.append(log_f0s_std_A)
-
-    num_domains = len(coded_sps_norms)
-    model = RelGAN(num_domains)
-    latest = tf.train.latest_checkpoint(hp.weights_dir)
-    model.load_weights(latest)
-
     p = pyaudio.PyAudio()
     chunk = 2048
     stream = p.open(format=pyaudio.paInt16,
                     channels=1,
-                    rate=44100,
+                    rate=hp.rate,
                     input=True,
                     output=True,
                     frames_per_buffer=chunk)
@@ -73,6 +50,7 @@ if __name__ == '__main__':
     t1 = threading.Thread(target=worker, args=(flag, lock))
     t1.start()
 
+    # Puts results of each workers.
     queue_encode = Queue()
     queue_convert = Queue()
     queue_decode = Queue()
@@ -80,6 +58,11 @@ if __name__ == '__main__':
 
     p_encode = Process(target=encode_worker, args=(queue_encode, queue_convert, x_atr, y_atr, alpha))
     p_encode.start()
+    p_convert = Process(target=convert_worker,
+                        args=(queue_convert, queue_decode, len(os.listdir('pickles')), x_atr, y_atr, alpha))
+    p_convert.start()
+    p_decode = Process(target=decode_worker, args=(queue_decode, queue_output))
+    p_decode.start()
 
     while flag['recording'] and stream.is_active():
         data = stream.read(chunk)

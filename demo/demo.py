@@ -1,25 +1,19 @@
-import tensorflow as tf
 import os
-from model import RelGAN
 from hyperparams import Hyperparameter as hp
-from utils import *
 import argparse
 import pyaudio
-import threading
 from demo.encode_worker import encode_worker
 from demo.convert_worker import convert_worker
 from demo.decode_worker import decode_worker
 from multiprocessing import Queue, Process
 
 
-def worker(flag, lock):
+def worker(flag):
     key = str(input('Press q to quit.'))
     while key != 'q':
         key = str(input('Press q to quit.'))
 
-    lock.acquire()
     flag['recording'] = False
-    lock.release()
 
 
 if __name__ == '__main__':
@@ -46,9 +40,8 @@ if __name__ == '__main__':
                     frames_per_buffer=chunk)
 
     flag = {'recording': True}
-    lock = threading.Lock()
-    t1 = threading.Thread(target=worker, args=(flag, lock))
-    t1.start()
+    p_logging = Process(target=worker, args=(flag,))
+    p_logging.start()
 
     # Puts results of each workers.
     queue_encode = Queue()

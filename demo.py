@@ -43,7 +43,7 @@ if __name__ == '__main__':
     p_logging = Process(target=worker, args=(flag,))
     p_logging.start()
 
-    # Puts results of each workers.
+    # Puts results of each workers
     queue_encode = Queue()
     queue_convert = Queue()
     queue_decode = Queue()

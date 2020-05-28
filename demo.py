@@ -1,4 +1,5 @@
 import os
+import numpy as np
 from hyperparams import Hyperparameter as hp
 import argparse
 import pyaudio
@@ -6,15 +7,6 @@ from demo.encode_worker import encode_worker
 from demo.convert_worker import convert_worker
 from demo.decode_worker import decode_worker
 from multiprocessing import Queue, Process
-
-
-def worker(flag):
-    key = str(input('Press q to quit.'))
-    while key != 'q':
-        key = str(input('Press q to quit.'))
-
-    flag['recording'] = False
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
@@ -31,17 +23,19 @@ if __name__ == '__main__':
     alpha = args.interpolation
 
     p = pyaudio.PyAudio()
-    chunk = 2048
-    stream = p.open(format=pyaudio.paInt16,
-                    channels=1,
-                    rate=hp.rate,
-                    input=True,
-                    output=True,
-                    frames_per_buffer=chunk)
+    chunk_in = 1024
+    chunk_out = 1024
+    stream_in = p.open(format=pyaudio.paInt16,
+                       channels=1,
+                       rate=hp.rate,
+                       input=True,
+                       frames_per_buffer=chunk_in)
 
-    flag = {'recording': True}
-    p_logging = Process(target=worker, args=(flag,))
-    p_logging.start()
+    stream_out = p.open(format=pyaudio.paInt16,
+                        channels=1,
+                        rate=hp.rate,
+                        output=True,
+                        frames_per_buffer=chunk_out)
 
     # Puts results of each workers
     queue_encode = Queue()
@@ -57,12 +51,15 @@ if __name__ == '__main__':
     p_decode = Process(target=decode_worker, args=(queue_decode, queue_output))
     p_decode.start()
 
-    while flag['recording'] and stream.is_active():
-        data = stream.read(chunk)
+    while stream_in.is_active():
+        data = stream_in.read(chunk_in)
+        data = np.frombuffer(data, dtype='int16').astype(np.float64)
         queue_encode.put(data)
         output = queue_output.get()
-        output = stream.write(output)
+        output = stream_out.write(output.astype(np.int16).tobytes())
 
-    stream.stop_stream()
-    stream.close()
+    stream_in.stop_stream()
+    stream_in.close()
+    stream_out.stop_stream()
+    stream_out.close()
     p.terminate()

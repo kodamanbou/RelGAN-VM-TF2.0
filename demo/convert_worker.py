@@ -19,6 +19,9 @@ def convert_worker(queue_input: Queue, queue_output: Queue, num_domains, x_atr, 
     z_labels[0] = np.identity(num_domains)[z_atr]
     alpha = np.ones(1) * alpha
 
+    devices = tf.config.experimental.list_physical_devices('GPU')
+    tf.config.experimental.set_memory_growth(devices[0], True)
+
     model = RelGAN(num_domains)
     latest = tf.train.latest_checkpoint(hp.weights_dir)
     model.load_weights(latest)

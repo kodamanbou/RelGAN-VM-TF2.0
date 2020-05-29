@@ -49,7 +49,7 @@ def encode_worker(queue_input: Queue, queue_output: Queue, x_atr, y_atr, alpha):
         coded_sp = world_encode_spectral_envelop(sp, hp.rate, hp.num_mceps)
         coded_sp_transposed = coded_sp.T
         coded_sp_norm = (coded_sp_transposed - coded_sps_means[x_atr]) / coded_sps_stds[x_atr]
-        coded_sp_norm = np.array([coded_sp_norm])
+        coded_sp_norm = np.array([coded_sp_norm], dtype=np.float32)
 
         coded_sps_AB_mean = (1 - alpha) * coded_sps_means[x_atr] + alpha * coded_sps_means[y_atr]
         coded_sps_AB_std = (1 - alpha) * coded_sps_stds[x_atr] + alpha * coded_sps_stds[y_atr]

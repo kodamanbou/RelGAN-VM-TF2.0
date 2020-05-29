@@ -7,9 +7,9 @@ from hyperparams import Hyperparameter as hp
 
 def convert_worker(queue_input: Queue, queue_output: Queue, num_domains, x_atr, y_atr, alpha):
     labels = np.arange(num_domains)
-    x_labels = np.zeros([1, num_domains])
-    y_labels = np.zeros([1, num_domains])
-    z_labels = np.zeros([1, num_domains])
+    x_labels = np.zeros([1, num_domains], dtype=np.float32)
+    y_labels = np.zeros([1, num_domains], dtype=np.float32)
+    z_labels = np.zeros([1, num_domains], dtype=np.float32)
 
     x_labels[0] = np.identity(num_domains)[x_atr]
     y_labels[0] = np.identity(num_domains)[y_atr]
@@ -29,9 +29,8 @@ def convert_worker(queue_input: Queue, queue_output: Queue, num_domains, x_atr, 
     while True:
         features = queue_input.get()
         coded_sp_norm = features.coded_sp_norm
-        inputs = [coded_sp_norm, coded_sp_norm, coded_sp_norm, coded_sp_norm, x_labels, y_labels, z_labels,
-                  alpha]
-        coded_sp_converted_norm = model(inputs)[0][0].numpy()
+        inputs = [coded_sp_norm, x_labels, y_labels, alpha]
+        coded_sp_converted_norm = model.generate(inputs)[0].numpy()
         if coded_sp_converted_norm.shape[1] > len(features.f0):
             coded_sp_converted_norm = coded_sp_converted_norm[:, :-1]
 

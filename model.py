@@ -89,6 +89,19 @@ class RelGAN(tf.keras.Model):
         outputs += [interpolate_identity, interpolate_B, interpolate_alpha]
         return outputs
 
+    @tf.function
+    def generate(self, inputs):
+        input_A = inputs[0]
+        input_A_label = inputs[1]
+        input_B_label = inputs[2]
+        alpha = tf.cast(inputs[3], tf.float32)
+        alpha_1 = tf.reshape(alpha, [-1, 1])
+
+        vector_A2B = input_B_label - input_A_label
+        generation_B = self.generator([input_A, vector_A2B * alpha_1])  # A -> B
+
+        return generation_B
+
 
 class Generator(tf.keras.Model):
     def __init__(self, num_domains, batch_size):

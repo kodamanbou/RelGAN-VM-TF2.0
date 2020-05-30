@@ -22,7 +22,7 @@ def input_worker(queue_input: Queue):
     while True:
         data = stream_in.read(chunk_in)
         data = np.frombuffer(data, dtype=np.float32).astype(np.float64)
-        if data.max() > 0.01:
+        if data.max() > 0.02:
             queue_input.put(data)
 
 

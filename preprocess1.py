@@ -19,7 +19,7 @@ def process1(folder):
 
         wav_splitted = librosa.effects.split(wav, top_db=48)
 
-        export_dir = folder.split('/')[1]
+        export_dir = folder.split(os.sep)[1]
         os.makedirs(os.path.join(hp.data_processed, export_dir), exist_ok=True)
 
         for s in range(wav_splitted.shape[0]):
